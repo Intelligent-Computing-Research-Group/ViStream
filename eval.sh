@@ -1,9 +1,3 @@
-###################################################################
-# File Name: eval.sh
-# Author: Zhongdao Wang
-# mail: wcd17@mails.tsinghua.edu.cn
-# Created Time: Wed Mar 31 15:51:59 2021
-###################################################################
 #!/bin/bash
 
 EXP_NAME=LCC
