@@ -22,6 +22,8 @@ In this work, we introduce a novel framework, **ViStream**, which leverages the 
 
 Demo videos showcasing ViStream's tracking performance on various scenarios are available in the [`demo_videos/`](demo_videos/) directory.
 
+The core ViStream implementation can be found in [`model/spike_quan_layer.py`](model/spike_quan_layer.py) and [`model/spike_quan_wrapper.py`](model/spike_quan_wrapper.py).
+
 ## Model Checkpoint
 
 The model checkpoint file is hosted on Hugging Face due to its large size (292MB). 
