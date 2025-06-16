@@ -17,7 +17,7 @@ Visual streaming perception (VSP) involves online intelligent processing of sequ
 In this work, we introduce a novel framework, **ViStream**, which leverages the Law of Charge Conservation (LoCC) property in ST-BIF neurons and a differential encoding (DiffEncode) scheme to optimize SNN inference for VSP. By encoding temporal differences between neighboring frames and eliminating frequent membrane resets, ViStream achieves significant computational reduction while maintaining accuracy equivalent to its ANN counterpart. We provide theoretical proofs of equivalence and validate ViStream across diverse VSP tasks, including object detection, tracking, and segmentation, demonstrating substantial energy savings without compromising performance.
 
 <div align="center">
-  <img src="assets/vistream_framework.pdf" alt="ViStream Framework" width="800"/>
+  <img src="assets/vistream_framework.png" alt="ViStream Framework" width="800"/>
 </div>
 
 ## Model Checkpoint
