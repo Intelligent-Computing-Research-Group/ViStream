@@ -1,0 +1,17 @@
+scikit-learn==0.22
+opencv-python
+pyyaml==5.3.1
+easydict==1.9
+imageio==2.6.1
+tqdm==4.42.0
+shapely==1.7.1
+matplotlib==2.2.2
+pycocotools==2.0
+lap==0.4.0
+click==7.1.2
+motmetrics==1.2.0
+scikit-image==0.16.2
+colorama
+loguru
+thop
+tabulate
