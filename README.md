@@ -33,3 +33,24 @@ cp ViStream/checkpoint-90.pth ./
 ```
 
 After downloading, make sure the checkpoint file is placed in the root directory of this project.
+
+## Running Experiments
+
+To run inference experiments, use the `eval.sh` script. The script contains various test commands for different tracking tasks:
+
+- **SOT (Single Object Tracking)**: Uncomment the `test_sot_siamfc.py` or `test_sot_cfnet.py` lines
+- **VOS (Video Object Segmentation)**: Uncomment the `test_vos.py` lines  
+- **MOT (Multiple Object Tracking)**: Uncomment the `test_mot.py` lines
+- **MOTS (Multiple Object Tracking and Segmentation)**: Uncomment the `test_mots.py` lines
+- **Pose Tracking**: Uncomment the `test_posetrack.py` lines
+
+**Usage:** Uncomment the desired experiment lines in `eval.sh`, then run:
+```bash
+bash eval.sh
+```
+
+## Acknowledgments
+
+This project is based on [UniTrack](https://github.com/Zhongdao/UniTrack) with improvements for energy-efficient tracking.
+
+The energy consumption and SOP evaluation code is adapted from [syops-counter](https://github.com/iCGY96/syops-counter).
