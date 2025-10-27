@@ -1,96 +1,90 @@
-<p align="center"> <img src="docs/logo.png" width="500"/> 
+# ViStream: Improving Computation Efficiency of Visual Streaming Perception via Law-of-Charge-Conservation Inspired Spiking Neural Network
 
---------------------------------------------------------------------------------
+[![CVPR](https://img.shields.io/badge/CVPR-2025-red.svg)](https://openaccess.thecvf.com/content/CVPR2025/papers/You_VISTREAM_Improving_Computation_Efficiency_of_Visual_Streaming_Perception_via_Law-of-Charge-Conservation_CVPR_2025_paper.pdf)
+[![Python](https://img.shields.io/badge/python-v3.8+-blue.svg)](https://www.python.org/downloads/)
+[![License](https://img.shields.io/badge/License-MuLan_PSL_2.0-blue.svg)](https://opensource.org/license/mulanpsl-2-0)
 
-**[NeurIPS 2021] Do different tracking tasks require different appearance model?**
+**Official PyTorch implementation of ViStream (CVPR  2025)**
 
-**[[ArXiv](https://arxiv.org/abs/2107.02156)]**  **[[Project Page](https://zhongdao.github.io/UniTrack)]**
+> **[ViStream: Improving Computation Efficiency of Visual Streaming Perception via Law-of-Charge-Conservation Inspired Spiking Neural Network](https://openaccess.thecvf.com/content/CVPR2025/papers/You_VISTREAM_Improving_Computation_Efficiency_of_Visual_Streaming_Perception_via_Law-of-Charge-Conservation_CVPR_2025_paper.pdf)**  
+> Kang You, Ziling Wei, Jing Yan, Boning Zhang, Qinghai Guo, Yaoyu Zhang, Zhezhi He  
+> *Proceedings of the Computer Vision and Pattern Recognition Conference (CVPR), 2025*
 
-UniTrack is a simple and Unified framework for addressing multiple tracking tasks. 
+## Abstract
 
-Being a fundamental problem in computer vision, tracking has been fragmented into a multitude of different experimental setups. As a consequence, the literature has fragmented too, and now the novel approaches proposed by the community are usually specialized to fit only one specific setup. To understand to what extent this specialization is actually necessary, we present UniTrack, a solution to address multiple different tracking tasks within the same framework. All tasks share the same [appearance model](#appearance-model). UniTrack
+Visual streaming perception (VSP) involves online intelligent processing of sequential frames captured by vision sensors, enabling real-time decision-making in applications such as autonomous driving, UAVs, and AR/VR. However, the computational efficiency of VSP on edge devices remains a challenge due to power constraints and the underutilization of temporal dependencies between frames. While spiking neural networks (SNNs) offer biologically inspired event-driven processing with potential energy benefits, their practical advantage over artificial neural networks (ANNs) for VSP tasks remains unproven.
 
-- Does **NOT** need training on a specific tracking task.
+In this work, we introduce a novel framework, **ViStream**, which leverages the Law of Charge Conservation (LoCC) property in ST-BIF neurons and a differential encoding (DiffEncode) scheme to optimize SNN inference for VSP. By encoding temporal differences between neighboring frames and eliminating frequent membrane resets, ViStream achieves significant computational reduction while maintaining accuracy equivalent to its ANN counterpart. We provide theoretical proofs of equivalence and validate ViStream across diverse VSP tasks, including object detection, tracking, and segmentation, demonstrating substantial energy savings without compromising performance.
 
-- Shows [competitive performance](docs/RESULTS.md) on six out of seven tracking tasks considered.
+<div align="center">
+  <img src="assets/vistream_framework.png" alt="ViStream Framework" width="800"/>
+</div>
 
-- Can be easily adapted to even [more tasks](##Demo).
+Demo videos showcasing ViStream's tracking performance on various scenarios are available in the [`demo_videos/`](demo_videos/) directory.
 
-- Can be used as an evaluation platform to [test pre-trained self-supervised models](docs/MODELZOO.md).
-    
- 
-## Demo
-**Multi-Object Tracking demo for 80 COCO classes ([YOLOX](https://github.com/Megvii-BaseDetection/YOLOX) + UniTrack)**
-<img src="docs/unitrack_yolox.gif" width="480"/> 
+The core ViStream implementation can be found in [`model/spike_quan_layer.py`](model/spike_quan_layer.py) and [`model/spike_quan_wrapper.py`](model/spike_quan_wrapper.py).
 
-In this demo we run the YOLOX detector and perform MOT for the 80 COCO classes. Try the demo by:
-```python
-python demo/mot_demo.py --classes cls1 cls2 ... clsN
+## Model Checkpoint
+
+The model checkpoint file is hosted on Hugging Face due to its large size (292MB). 
+
+### Download Instructions
+
+You can download the checkpoint file using one of the following methods:
+
+#### Method 1: Using wget/curl
+```bash
+# Download the checkpoint file
+wget https://huggingface.co/AndyBlocker/ViStream/resolve/main/checkpoint-90.pth
 ```
-where cls1 to clsN represent the indices of classes you would like to detect and track. See [here](https://gist.github.com/AruniRC/7b3dadd004da04c80198557db5da4bda) for the index list. By default all 80 classes are detected and tracked.
-    
-**Single-Object Tracking demo for custom videos**
-```python
-python demo/sot_demo.py --config ./config/imagenet_resnet18_s3.yaml --input /path/to/your/video
+
+#### Method 2: Using Hugging Face Hub
+```bash
+# Install huggingface_hub if not already installed
+pip install huggingface_hub
+
+# Download using Python
+python -c "from huggingface_hub import hf_hub_download; hf_hub_download(repo_id='AndyBlocker/ViStream', filename='checkpoint-90.pth', local_dir='.')"
 ```
-In this demo, you are asked to annotate the target to be tracked, by drawing a rectangle in the first frame of the video. Then the algorithm tracks the target in following timesteps without object detection.
-  
-## Tasks & Framework
-![tasksframework](docs/tasksframework.png)
 
-### Tasks
-We classify existing tracking tasks along four axes: (1) Single or multiple targets; (2) Users specify targets or automatic detectors specify targets; (3) Observation formats (bounding box/mask/pose); (2) Class-agnostic or class-specific (i.e. human/vehicles). We mainly experiment on 5 tasks: **SOT, VOS, MOT, MOTS, and PoseTrack**. Task setups are summarized in the above figure.
+#### Method 3: Using Git LFS (after cloning the HF repo)
+```bash
+# Clone the Hugging Face repository
+git clone https://huggingface.co/AndyBlocker/ViStream
+# Copy the checkpoint to your project directory
+cp ViStream/checkpoint-90.pth ./
+```
 
-### Appearance model
-An appearance model is the only learnable component in UniTrack. It should provide universal visual representation, and is usually pre-trained on large-scale dataset in supervised or unsupervised manners. Typical examples include ImageNet pre-trained ResNets (supervised), and recent self-supervised models such as MoCo and SimCLR (unsupervised).
+After downloading, make sure the checkpoint file is placed in the root directory of this project.
 
-### Propagation and Association
-*Propagation* and *Association* are the two core primitives used in UniTrack to address a wide variety of tracking tasks (currently 7, but more can be added), Both use the features extracted by the pre-trained appearance model. For propagation, we adopt exiting methods such as [cross correlation](https://www.robots.ox.ac.uk/~luca/siamese-fc.html), [DCF](https://openaccess.thecvf.com/content_cvpr_2017/html/Valmadre_End-To-End_Representation_Learning_CVPR_2017_paper.html), and [mask propation](https://github.com/ajabri/videowalk). For association we employ a simple algorithm as in [JDE](https://github.com/Zhongdao/Towards-Realtime-MOT) and develop a novel reconstruction-based similairty metric that allows to compare objects across shapes and sizes.
-    
-    
-## Getting started
+## Running Experiments
 
-1. Installation: Please check out [docs/INSTALL.md](docs/INSTALL.md)
-2. Data preparation: Please check out [docs/DATA.md](docs/DATA.md)
-3. Appearance model preparation: Please check out [docs/MODELZOO.md](docs/MODELZOO.md)
-4. Run evaluation on all datasets: Please check out [docs/RUN.md](docs/RUN.md)
+To run inference experiments, use the `eval.sh` script. The script contains various test commands for different tracking tasks:
 
-## Results
-Below we show results of UniTrack with a simple **ImageNet Pre-trained ResNet-18** as the appearance model. More results can be found in [RESULTS.md](docs/RESULTS.md).
+- **VOS (Video Object Segmentation)**: Uncomment the `test_vos.py` lines  
+- **MOT (Multiple Object Tracking)**: Uncomment the `test_mot.py` lines
+- **MOTS (Multiple Object Tracking and Segmentation)**: Uncomment the `test_mots.py` lines
+- **Pose Tracking**: Uncomment the `test_posetrack.py` lines
 
-**Single Object Tracking (SOT) on OTB-2015**
+**Usage:** Uncomment the desired experiment lines in `eval.sh`, then run:
+```bash
+bash eval.sh
+```
 
-<img src="docs/sot1.gif" width="320"/>  <img src="docs/sot2.gif" width="320"/>
-
-**Video Object Segmentation (VOS) on DAVIS-2017 *val* split**
-
-<img src="docs/vos1.gif" width="320"/>  <img src="docs/vos2.gif" width="320"/>
-
-**Multiple Object Tracking (MOT) on MOT-16 [*test* set *private detector* track](https://motchallenge.net/method/MOT=3856&chl=5)** (Detections from FairMOT)
-
-<img src="docs/MOT1.gif" width="320"/>  <img src="docs/MOT2.gif" width="320"/>
-
-**Multiple Object Tracking and Segmentation (MOTS) on MOTS challenge [*test* set](https://motchallenge.net/method/MOTS=109&chl=17)** (Detections from COSTA_st)
-
-<img src="docs/MOTS1.gif" width="320"/>  <img src="docs/MOTS2.gif" width="320"/>
-
-**Pose Tracking on PoseTrack-2018 *val* split** (Detections from LightTrack)
-
-<img src="docs/posetrack1.gif" width="320"/>  <img src="docs/posetrack2.gif" width="320"/>
-
-## Acknowledgement
-A part of code is borrowed from 
-    
-[VideoWalk](https://github.com/ajabri/videowalk) by Allan A. Jabri
-
-[SOT code](https://github.com/JudasDie/SOTS) by Zhipeng Zhang
-    
 ## Citation
+
+If you find this work useful for your research, please cite:
+
 ```bibtex
-@article{wang2021different,
-  author    = {Wang, Zhongdao and Zhao, Hengshuang and Li, Ya-Li and Wang, Shengjin and Torr, Philip and Bertinetto, Luca},
-  title     = {Do different tracking tasks require different appearance models?},
-  journal   = {Thirty-Fifth Conference on Neural Infromation Processing Systems},
-  year      = {2021},
+@inproceedings{you2025vistream,
+  title={VISTREAM: Improving Computation Efficiency of Visual Streaming Perception via Law-of-Charge-Conservation Inspired Spiking Neural Network},
+  author={You, Kang and Wei, Ziling and Yan, Jing and Zhang, Boning and Guo, Qinghai and Zhang, Yaoyu and He, Zhezhi},
+  booktitle={Proceedings of the Computer Vision and Pattern Recognition Conference},
+  pages={8796--8805},
+  year={2025}
 }
 ```
+
+## Acknowledgments
+
+This project is based on [UniTrack](https://github.com/Zhongdao/UniTrack) with improvements for energy-efficiency. The energy consumption and SOP evaluation code is adapted from [syops-counter](https://github.com/iCGY96/syops-counter).
