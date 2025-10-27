@@ -34,7 +34,7 @@ def _pascal_color_map(N=256, normalized=False):
 
 
 def overlay_semantic_mask(im, ann, alpha=0.5, colors=None, contour_thickness=None):
-    im, ann = np.asarray(im, dtype=np.uint8), np.asarray(ann, dtype=np.int32)
+    im, ann = np.asarray(im, dtype=np.uint8), np.asarray(ann, dtype=np.int)
     if im.shape[:-1] != ann.shape:
         raise ValueError('First two dimensions of `im` and `ann` must match')
     if im.shape[-1] != 3:

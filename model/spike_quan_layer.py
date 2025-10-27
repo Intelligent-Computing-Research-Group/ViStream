@@ -11,75 +11,62 @@ import scipy
 # torch.set_default_tensor_type(torch.DoubleTensor)
 
 class ORIIFNeuron(nn.Module):
-    """
-    改进版 IF 神经元：
-    1. q、cur_output 用 register_buffer() 绑定到模块，跟随 .cuda() / DDP 自动搬迁；
-    2. 前向采用 in-place add_ / zero_，彻底复用显存；
-    3. 推理阶段不记录梯度；
-    """
-
-    def __init__(self, q_threshold: float | torch.Tensor, level: int, sym: bool = False):
-        super().__init__()
-        # 常量参数
-        self.q_threshold = torch.as_tensor(q_threshold, dtype=torch.float32)  # 可是标量，也可加载量化标尺
-        self.level = level
+    def __init__(self,q_threshold,level,sym=False):
+        super(ORIIFNeuron,self).__init__()
+        self.q = 0.0
+        self.q_threshold = q_threshold
+        self.is_work = False
+        self.cur_output = 0.0
+        # self.steps = torch.tensor(3.0) 
+        self.level = torch.tensor(level)
         self.sym = sym
-        self.pos_max = level - 1
-        self.neg_min = 0
-        self.eps = 0.0
+        self.pos_max = torch.tensor(level - 1)
+        self.neg_min = torch.tensor(0)
+            
+        self.eps = 0
 
-        # 状态缓冲区（懒初始化）
-        self.register_buffer("q", None, persistent=False)          # 积分电荷
-        self.register_buffer("cur_output", None, persistent=False) # 本步脉冲
-        self.is_work = False
-
-    # ------------------------------------------------------------
-    # 实用函数
-    # ------------------------------------------------------------
-    def _lazy_init_state(self, x: torch.Tensor):
-        """按输入尺寸一次性申请显存，之后一直复用"""
-        if self.q is None or self.q.shape != x.shape:
-            self.q = torch.zeros_like(x, dtype=torch.float32) + 0.5
-            self.cur_output = torch.zeros_like(x, dtype=x.dtype)
-
-    # ------------------------------------------------------------
-    # 接口
-    # ------------------------------------------------------------
+    # def __repr__(self):
+    #         return f"IFNeuron(level={self.level}, sym={self.sym}, pos_max={self.pos_max}, neg_min={self.neg_min}, q_threshold={self.q_threshold})"
+    
     def reset(self):
-        """清空内部状态；训练／推理新序列前调用"""
-        if isinstance(self.q, torch.Tensor):
-            self.q.zero_().add_(0.5)
-        if isinstance(self.cur_output, torch.Tensor):
-            self.cur_output.zero_()
+        # print("IFNeuron reset")
+        self.q = 0.0
+        self.cur_output = 0.0
         self.is_work = False
+        self.spike_position = None
+        # self.neg_spike_position = None
 
-    def forward(self, input: torch.Tensor) -> torch.Tensor:
-        """
-        输入：实数电流  (B, …)  
-        输出：脉冲张量，同尺寸，数值 ∈ {0, q_threshold}
-        """
-        # 归一化
-        x = input / self.q_threshold
+    def forward(self,input):
+        x = input/self.q_threshold
+        if (not torch.is_tensor(x)) and x == 0.0 and (not torch.is_tensor(self.cur_output)) and self.cur_output == 0.0:
+            self.is_work = False
+            return x
+        
+        if not torch.is_tensor(self.cur_output):
+            self.cur_output = torch.zeros(x.shape,dtype=x.dtype).to(x.device)
+            self.q = torch.zeros(x.shape,dtype=torch.float32).to(x.device) + 0.5
 
-        # 第一次调用时按输入形状初始化缓存
-        self._lazy_init_state(x)
+        self.is_work = True
+        
+        self.q = self.q + (x.detach() if torch.is_tensor(x) else x)
 
-        # 积分（不需要梯度，且 in-place）
-        with torch.no_grad():
-            self.q.add_(x)
+        spike_position = (self.q - 1 >= 0)
+        # neg_spike_position = (self.q < -self.eps) & (self.acc_q > self.neg_min)
 
-        # 生成脉冲
-        spike_pos = self.q >= 1
-        self.cur_output.zero_()
-        self.cur_output[spike_pos] = 1
+        self.cur_output[:] = 0
+        self.cur_output[spike_position] = 1
+        # self.cur_output[neg_spike_position] = -1
 
-        # 电荷回落
-        self.q[spike_pos] -= 1
+        self.q[spike_position] = self.q[spike_position] - 1
+        # self.q[neg_spike_position] = self.q[neg_spike_position] + 1
 
-        # 判断是否仍在工作（可选逻辑）
-        self.is_work = spike_pos.any().item()
-
-        return self.cur_output * self.q_threshold
+        # print((x == 0).all(), (self.cur_output==0).all())
+        if (x == 0).all() and (self.cur_output==0).all():
+            self.is_work = False
+        
+        # print("self.cur_output",self.cur_output)
+        
+        return self.cur_output*self.q_threshold
 
 
 class NeuronCircuit(nn.Module):

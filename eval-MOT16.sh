@@ -17,6 +17,6 @@ mkdir -p $SMRY_ROOT
 #     --level 16 --weight_quantization_bit 32 --time_step 32 --record_inout --encoding_type analog --log_dir /home/kang_you/UniTrack-main/output | tee results/summary/${EXP_NAME}/vos.log 2>&1
 # CUDA_VISIBLE_DEVICES=$2 python -u test/test_mot.py --config $CFG_PATH | tee results/summary/${EXP_NAME}/mot.log 2>&1
 CUDA_VISIBLE_DEVICES=$2 python -u test/test_mot.py --config $CFG_PATH --QANNPath /home/kang_you/SpikeZIP_transformer/output/T-SNN_resnet50_imagenet_relu_QANN_QAT_act16_weightbit32/checkpoint-90.pth \
-    --level 16 --weight_quantization_bit 32 --time_step 16 --record_inout --encoding_type analog --log_dir /home/kang_you/UniTrack-main/output | tee results/summary/${EXP_NAME}/mot-T=16.log 2>&1
+    --level 16 --weight_quantization_bit 32 --time_step 32 --record_inout --encoding_type analog --log_dir /home/kang_you/UniTrack-main/output | tee results/summary/${EXP_NAME}/mot.log 2>&1
 #CUDA_VISIBLE_DEVICES=$2 python -u test/test_mots.py --config $CFG_PATH | tee  results/summary/${EXP_NAME}/mots.log 2>&1
 #CUDA_VISIBLE_DEVICES=$2 python -u test/test_posetrack.py --config $CFG_PATH | tee results/summary/${EXP_NAME}/posetrack.log 2>&1

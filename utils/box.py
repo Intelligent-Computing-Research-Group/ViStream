@@ -132,7 +132,7 @@ def clip_box(bbox, im_shape):
 def int_box(box):
     box = np.asarray(box, dtype=np.float)
     box = np.round(box)
-    return np.asarray(box, dtype=np.int32)
+    return np.asarray(box, dtype=np.int)
 
 
 def remove_duplicated_box(boxes, iou_th=0.5):

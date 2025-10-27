@@ -219,8 +219,8 @@ def resnet50(pretrained=False, progress=True, **kwargs) -> ResNet:
 def spikeresnet50(pretrained=False, progress=True, **kwargs) -> ResNet:
     # need args: QANNPath, level, weight_quantization_bit, time_step, encoding_type, record_inout, log_dir
     from .spike_quan_wrapper import myquan_replace_resnet,SNNWrapper
-    # from energy_consumption_calculation.engine import add_syops_counting_methods, print_model_with_syops
-    # from energy_consumption_calculation.flops_counter import get_energy_cost
+    from energy_consumption_calculation.engine import add_syops_counting_methods, print_model_with_syops
+    from energy_consumption_calculation.flops_counter import get_energy_cost
         
     # get the args and remove them from kwargs
     QANNPath = kwargs.pop('QANNPath', None)
@@ -233,18 +233,18 @@ def spikeresnet50(pretrained=False, progress=True, **kwargs) -> ResNet:
     dataLen = kwargs.pop('dataLen', None)
     count = 0
 
-    # def custom_forward_hook(module, input, output):
-    #     nonlocal dataLen,count
-    #     # print("count",count,"dataLen",dataLen)
-    #     if count == dataLen - 1:
-    #         ssa_info = {'depth': 12, 'Nheads': 6, 'embSize': 384, 'patchSize': 16, 'Tsteps': 32}  # small
-    #         syops_count, params_count = module.compute_average_syops_cost()
-    #         print_model_with_syops(module,syops_count,params_count,ost=sys.stdout,syops_units='GMac',param_units="M",precision=4)
-    #         module.stop_syops_count()
-    #         get_energy_cost(module,ssa_info)
-    #         count = count + 1
-    #     else:
-    #         count = count + 1
+    def custom_forward_hook(module, input, output):
+        nonlocal dataLen,count
+        # print("count",count,"dataLen",dataLen)
+        if count == dataLen - 1:
+            ssa_info = {'depth': 12, 'Nheads': 6, 'embSize': 384, 'patchSize': 16, 'Tsteps': 32}  # small
+            syops_count, params_count = module.compute_average_syops_cost()
+            print_model_with_syops(module,syops_count,params_count,ost=sys.stdout,syops_units='GMac',param_units="M",precision=4)
+            module.stop_syops_count()
+            get_energy_cost(module,ssa_info)
+            count = count + 1
+        else:
+            count = count + 1
     
     # define ANN
     ANNresnet50 =  _resnet('resnet50', Bottleneck, [3, 4, 6, 3], pretrained, progress,
@@ -266,12 +266,12 @@ def spikeresnet50(pretrained=False, progress=True, **kwargs) -> ResNet:
                            model_name="SpikeResNet50", is_softmax = False, \
                            record_inout=False, record_dir=log_dir+f"/output_bin_snn_AppearanceModel_w{weight_quantization_bit}_a{int(torch.log2(torch.tensor(level+0.0)))}_T{time_step}/")
     
-    # if record_inout:
-    #     SNNresnet50 = add_syops_counting_methods(SNNresnet50)
-    #     SNNresnet50.start_syops_count(ost=sys.stdout, verbose=False,
-    #                             ignore_list=[])
-    #     SNNresnet50.eval()
-    #     SNNresnet50.register_forward_hook(custom_forward_hook)
+    if record_inout:
+        SNNresnet50 = add_syops_counting_methods(SNNresnet50)
+        SNNresnet50.start_syops_count(ost=sys.stdout, verbose=False,
+                                ignore_list=[])
+        SNNresnet50.eval()
+        SNNresnet50.register_forward_hook(custom_forward_hook)
     # # print(SNNresnet50)
     return SNNresnet50
 
@@ -339,8 +339,8 @@ def spikeresnet50IF(pretrained=False, progress=True, **kwargs) -> ResNet:
 def spikeresnet50LCC(pretrained=False, progress=True, **kwargs) -> ResNet:
     # need args: QANNPath, level, weight_quantization_bit, time_step, encoding_type, record_inout, log_dir
     from .spike_quan_wrapper import myquan_replace_resnet,SNNWrapperLCC
-    # from energy_consumption_calculation.engine import add_syops_counting_methods, print_model_with_syops
-    # from energy_consumption_calculation.flops_counter import get_energy_cost
+    from energy_consumption_calculation.engine import add_syops_counting_methods, print_model_with_syops
+    from energy_consumption_calculation.flops_counter import get_energy_cost
         
     # get the args and remove them from kwargs
     QANNPath = kwargs.pop('QANNPath', None)
@@ -353,17 +353,17 @@ def spikeresnet50LCC(pretrained=False, progress=True, **kwargs) -> ResNet:
     dataLen = kwargs.pop('dataLen', None)
     count = 0    
     
-    # def custom_forward_hook(module, input, output):
-    #     nonlocal dataLen,count
-    #     if count == dataLen - 1:
-    #         ssa_info = {'depth': 12, 'Nheads': 6, 'embSize': 384, 'patchSize': 16, 'Tsteps': 32}  # small
-    #         syops_count, params_count = module.compute_average_syops_cost()
-    #         print_model_with_syops(module,syops_count,params_count,ost=sys.stdout,syops_units='GMac',param_units="M",precision=4)
-    #         module.stop_syops_count()
-    #         get_energy_cost(module,ssa_info)
-    #         count = count + 1
-    #     else:
-    #         count = count + 1
+    def custom_forward_hook(module, input, output):
+        nonlocal dataLen,count
+        if count == dataLen - 1:
+            ssa_info = {'depth': 12, 'Nheads': 6, 'embSize': 384, 'patchSize': 16, 'Tsteps': 32}  # small
+            syops_count, params_count = module.compute_average_syops_cost()
+            print_model_with_syops(module,syops_count,params_count,ost=sys.stdout,syops_units='GMac',param_units="M",precision=4)
+            module.stop_syops_count()
+            get_energy_cost(module,ssa_info)
+            count = count + 1
+        else:
+            count = count + 1
 
     # define ANN
     ANNresnet50 = _resnet('resnet50', Bottleneck, [3, 4, 6, 3], pretrained, progress,
@@ -385,12 +385,12 @@ def spikeresnet50LCC(pretrained=False, progress=True, **kwargs) -> ResNet:
                            model_name="SpikeResNet50", is_softmax = False, \
                            record_inout=False, record_dir=log_dir+f"/output_bin_snn_AppearanceModel_w{weight_quantization_bit}_a{int(torch.log2(torch.tensor(level+0.0)))}_T{time_step}/")
     
-    # if record_inout:
-        # SNNresnet50 = add_syops_counting_methods(SNNresnet50)
-        # SNNresnet50.start_syops_count(ost=sys.stdout, verbose=False,
-        #                         ignore_list=[])
-        # SNNresnet50.eval()
-        # SNNresnet50.register_forward_hook(custom_forward_hook)
+    if record_inout:
+        SNNresnet50 = add_syops_counting_methods(SNNresnet50)
+        SNNresnet50.start_syops_count(ost=sys.stdout, verbose=False,
+                                ignore_list=[])
+        SNNresnet50.eval()
+        SNNresnet50.register_forward_hook(custom_forward_hook)
     return SNNresnet50
 
 

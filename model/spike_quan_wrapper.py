@@ -39,7 +39,7 @@ class Judger():
 		children = list(model.named_children())
 		for name, child in children:
 			is_need = False
-			if isinstance(child, IFNeuron) or isinstance(child, LLLinear) or isinstance(child, LLConv2d) or isinstance(child, ORIIFNeuron):
+			if isinstance(child, IFNeuron) or isinstance(child, LLLinear) or isinstance(child, LLConv2d):
 				self.network_finish = self.network_finish and (not model._modules[name].is_work)
 				# print("child",child,"network_finish",self.network_finish,"model._modules[name].is_work",(model._modules[name].is_work))
 				is_need = True
@@ -147,7 +147,7 @@ class SNNWrapperIF(nn.Module):
         self.kwargs = kwargs
         self.model_name = kwargs["model_name"]
         self.is_softmax = kwargs["is_softmax"]
-        self.record_inout = False
+        self.record_inout = kwargs["record_inout"]
         self.record_dir = kwargs["record_dir"]
         self.max_T = 0
         self.visualize = False
@@ -173,7 +173,6 @@ class SNNWrapperIF(nn.Module):
                 for order in self.calOrder:
                     f.write(order+"\n")
                 f.close()
-        self.count2 = 0
     
     def hook_mid_feature(self):
         self.feature_list = []
@@ -181,7 +180,7 @@ class SNNWrapperIF(nn.Module):
         def _hook_mid_feature(module, input, output):
             self.feature_list.append(output)
             self.input_feature_list.append(input[0])
-        self.model.register_forward_hook(_hook_mid_feature)
+        self.model.blocks[11].norm2[1].register_forward_hook(_hook_mid_feature)
         # self.model.blocks[11].attn.attn_IF.register_forward_hook(_hook_mid_feature)
     
     def get_mid_feature(self):
@@ -271,7 +270,6 @@ class SNNWrapperIF(nn.Module):
     def forward(self,x, verbose=False):
         accu = None
         count1 = 0
-        self.count2 = self.count2 + 1
         accu_per_timestep = []
         if self.visualize:
             self.hook_mid_feature()
@@ -316,11 +314,9 @@ class SNNWrapperIF(nn.Module):
         # print("Time Step:",count1)
         if self.visualize:
             self.get_mid_feature()
-            torch.save(self.feature_list,"spikeresnet50IF_output_feature.pth")
-            torch.save(self.input_feature_list,"spikeresnet50IF_input_feature.pth")
+            torch.save(self.feature_list,"model_blocks11_norm2.pth")
+            torch.save(self.input_feature_list,"model_blocks11_norm2_input.pth")
         self.reset()
-        if self.count2 > 0:
-            self.visualize = True
         if verbose:
             accu_per_timestep = torch.stack(accu_per_timestep,dim=0)
             return accu,accu_per_timestep
@@ -349,7 +345,6 @@ class SNNWrapper(nn.Module):
         self.max_T = 0
         self.visualize = False
         self.calEnergy = False
-        self.count2 = 0
         # self.model_reset = None
         if self.model_name.count("vit") > 0:
             self.pos_embed = deepcopy(self.model.pos_embed.data)
@@ -357,20 +352,20 @@ class SNNWrapper(nn.Module):
 
         self._replace_weight(self.model)
         # self.model_reset = deepcopy(self.model)        
-        # if self.record_inout:
-        #     self.calOrder = []
-        #     self._record_inout(self.model)
-        #     self.set_snn_save_name(self.model)
-        #     local_rank = torch.distributed.get_rank()
-        #     glo._init()
-        #     if local_rank == 0:
-        #         if not os.path.exists(self.record_dir):
-        #             os.mkdir(self.record_dir)
-        #         glo.set_value("output_bin_snn_dir",self.record_dir)
-        #         f = open(f"{self.record_dir}/calculationOrder.txt","w+")
-        #         for order in self.calOrder:
-        #             f.write(order+"\n")
-        #         f.close()
+        if self.record_inout:
+            self.calOrder = []
+            self._record_inout(self.model)
+            self.set_snn_save_name(self.model)
+            local_rank = torch.distributed.get_rank()
+            glo._init()
+            if local_rank == 0:
+                if not os.path.exists(self.record_dir):
+                    os.mkdir(self.record_dir)
+                glo.set_value("output_bin_snn_dir",self.record_dir)
+                f = open(f"{self.record_dir}/calculationOrder.txt","w+")
+                for order in self.calOrder:
+                    f.write(order+"\n")
+                f.close()
     
     def hook_mid_feature(self):
         self.feature_list = []
@@ -378,7 +373,7 @@ class SNNWrapper(nn.Module):
         def _hook_mid_feature(module, input, output):
             self.feature_list.append(output)
             self.input_feature_list.append(input[0])
-        self.model.register_forward_hook(_hook_mid_feature)
+        self.model.blocks[11].norm2[1].register_forward_hook(_hook_mid_feature)
         # self.model.blocks[11].attn.attn_IF.register_forward_hook(_hook_mid_feature)
     
     def get_mid_feature(self):
@@ -426,7 +421,7 @@ class SNNWrapper(nn.Module):
         for name, child in children:
             is_need = False
             if isinstance(child, QAttention):
-                SAttn = SAttention(dim=child.num_heads*child.head_dim,num_heads=child.num_heads,level=self.level,is_softmax=self.is_softmax,neuron_layer=ORIIFNeuron)
+                SAttn = SAttention(dim=child.num_heads*child.head_dim,num_heads=child.num_heads,level=self.level,is_softmax=self.is_softmax,neuron_layer=IFNeuron)
                 attn_convert(QAttn=child,SAttn=SAttn,level=self.level,neuron_type = self.neuron_type)
                 model._modules[name] = SAttn
                 is_need = True
@@ -450,7 +445,7 @@ class SNNWrapper(nn.Module):
                 model._modules[name] = SNN_LN
                 is_need = True
             elif isinstance(child, MyQuan):
-                neurons = ORIIFNeuron(q_threshold = torch.tensor(1.0),sym=child.sym,level = self.level)
+                neurons = IFNeuron(q_threshold = torch.tensor(1.0),sym=child.sym,level = self.level)
                 neurons.q_threshold=child.s.data
                 neurons.neuron_type=self.neuron_type
                 neurons.level = self.level
@@ -468,10 +463,9 @@ class SNNWrapper(nn.Module):
     def forward(self,x, verbose=False):
         accu = None
         count1 = 0
-        self.count2 = self.count2 + 1
         accu_per_timestep = []
-        # if self.visualize:
-            # self.hook_mid_feature()
+        if self.visualize:
+            self.hook_mid_feature()
         if self.Encoding_type == "rate":
             self.mean = 0.0
             self.std  = 0.0
@@ -480,7 +474,6 @@ class SNNWrapper(nn.Module):
             self.finish_judger.reset_network_finish_flag()
             self.finish_judger.judge_finish(self)
             network_finish = self.finish_judger.network_finish
-            network_finish = False
             if (count1 > 0 and network_finish) or count1 >= self.T:
                 self.max_T = max(count1, self.max_T)
                 break
@@ -512,13 +505,11 @@ class SNNWrapper(nn.Module):
             if count1 % 100 == 0:
                 print(count1)
         # print("Time Step:",count1)
-        # if self.visualize:
-            # self.get_mid_feature()
-            # torch.save(self.feature_list,"spikeresnet50_output_feature.pth")
-            # torch.save(self.input_feature_list,"spikeresnet50_input_feature.pth")
+        if self.visualize:
+            self.get_mid_feature()
+            torch.save(self.feature_list,"model_blocks11_norm2.pth")
+            torch.save(self.input_feature_list,"model_blocks11_norm2_input.pth")
         self.reset()
-        if self.count2 > 0:
-            self.visualize = True
         if verbose:
             accu_per_timestep = torch.stack(accu_per_timestep,dim=0)
             return accu,accu_per_timestep
@@ -554,24 +545,23 @@ class SNNWrapperLCC(nn.Module):
             self.cls_token = deepcopy(self.model.cls_token.data)
         self.accu = torch.tensor(0.0)
         self.count1 = 0
-        self.count2 = 0
 
         self._replace_weight(self.model)
         # self.model_reset = deepcopy(self.model)        
-        # if self.record_inout:
-        #     self.calOrder = []
-        #     self._record_inout(self.model)
-        #     self.set_snn_save_name(self.model)
-        #     local_rank = torch.distributed.get_rank()
-        #     glo._init()
-        #     if local_rank == 0:
-        #         if not os.path.exists(self.record_dir):
-        #             os.mkdir(self.record_dir)
-        #         glo.set_value("output_bin_snn_dir",self.record_dir)
-        #         f = open(f"{self.record_dir}/calculationOrder.txt","w+")
-        #         for order in self.calOrder:
-        #             f.write(order+"\n")
-        #         f.close()
+        if self.record_inout:
+            self.calOrder = []
+            self._record_inout(self.model)
+            self.set_snn_save_name(self.model)
+            local_rank = torch.distributed.get_rank()
+            glo._init()
+            if local_rank == 0:
+                if not os.path.exists(self.record_dir):
+                    os.mkdir(self.record_dir)
+                glo.set_value("output_bin_snn_dir",self.record_dir)
+                f = open(f"{self.record_dir}/calculationOrder.txt","w+")
+                for order in self.calOrder:
+                    f.write(order+"\n")
+                f.close()
     
     def hook_mid_feature(self):
         self.feature_list = []
@@ -579,7 +569,7 @@ class SNNWrapperLCC(nn.Module):
         def _hook_mid_feature(module, input, output):
             self.feature_list.append(output)
             self.input_feature_list.append(input[0])
-        self.model.register_forward_hook(_hook_mid_feature)
+        self.model.blocks[11].norm2[1].register_forward_hook(_hook_mid_feature)
         # self.model.blocks[11].attn.attn_IF.register_forward_hook(_hook_mid_feature)
     
     def get_mid_feature(self):
@@ -655,7 +645,7 @@ class SNNWrapperLCC(nn.Module):
                 model._modules[name] = SNN_LN
                 is_need = True
             elif isinstance(child, MyQuan):
-                neurons = ORIIFNeuron(q_threshold = torch.tensor(1.0),sym=child.sym,level = self.level)
+                neurons = IFNeuron(q_threshold = torch.tensor(1.0),sym=child.sym,level = self.level)
                 neurons.q_threshold=child.s.data
                 neurons.neuron_type=self.neuron_type
                 neurons.level = self.level
@@ -670,30 +660,20 @@ class SNNWrapperLCC(nn.Module):
             if not is_need:            
                 self._replace_weight(child)
 
-    def forward(self, x):
+    def forward(self,x):
         accuList = []
-        accuperTime = []
-        self.count2 = self.count2 + 1
         B = x.shape[0]
-        # if self.visualize:
-            # self.hook_mid_feature()
         for idx in range(B):
-            accuperTime1 = []
             count2 = 0
             x1 = x[idx]
             # if self.count1 > 0:
-                # self.T = 32
-            
-            # 用于存储在 T 时刻的累计输出
-            accu_at_T = None
-            
+            #     self.T = 12
             while(1):
                 self.finish_judger.reset_network_finish_flag()
                 self.finish_judger.judge_finish(self)
                 network_finish = self.finish_judger.network_finish
-                
-                # 只有在 judger 判断 finish 且 count2 > 0 时才停止
-                if count2 > 0 and network_finish or count2 >= 16:
+                # network_finish  = False
+                if (count2 > 0 and network_finish) or count2 >= self.T:
                     self.max_T = max(count2, self.max_T)
                     break
 
@@ -705,37 +685,16 @@ class SNNWrapperLCC(nn.Module):
                 output = self.model(input)
                 
                 if self.count1 == 0:
-                    self.accu = output + 0.0
+                    self.accu = output+0.0
                     self.count1 = self.count1 + 1
                 else:
-                    self.accu = self.accu + output
-                    self.count1 = self.count1 + 1
+                    self.accu = self.accu+output
 
                 count2 = count2 + 1
-                accuperTime1.append(output + 0.0)
-                
-                # 在 count2 == self.T 时保存累计结果，但继续推理
-                if count2 == self.T:
-                    accu_at_T = self.accu + 0.0  # 深拷贝当前累计结果
-
-            # 使用在 T 时刻的累计输出，如果循环在 T 之前结束，则使用最终累计输出
-            if accu_at_T is not None:
-                accuList.append(accu_at_T)
-            else:
-                accuList.append(self.accu + 0.0)
-                
+            accuList.append(self.accu+0.0)
             self.last_input = x1 + 0.0
-            accuperTime.append(torch.cat(accuperTime1, dim=0))
-        
-        # if self.visualize:
-        #     self.get_mid_feature()
-        #     # torch.save(torch.stack(accuperTime, dim=0),f"spikeresnet50LCC_output_feature{self.count1}.pth")
-        #     torch.save(self.feature_list,"spikeresnet50LCC_output_feature.pth")
-        #     torch.save(self.input_feature_list,"spikeresnet50LCC_input_feature.pth")
         # print(torch.stack(accuList, dim=0).sum())
         # print(torch.cat(accuList, dim=0).shape)
-        # if self.count2 > 0:
-            # self.visualize = True
         return torch.cat(accuList, dim=0)
 
 

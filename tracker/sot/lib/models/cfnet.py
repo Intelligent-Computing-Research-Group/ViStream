@@ -9,7 +9,7 @@ try:
     from torch import rfft
 except ImportError:
     def rfft(x, signal_ndim):
-        t = torch.fft.rfft2(x, dim = (-signal_ndim))
+        t = torch.fft.fft(x, dim = (-signal_ndim))
         r = torch.stack((t.real, t.imag), -1)
         return r
     def irfft(x, signal_ndim):

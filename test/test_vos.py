@@ -20,7 +20,6 @@ from model.functional import *
 import utils
 from utils.visualize import dump_predictions
 import math
-from tqdm import tqdm
 
 def main(args, vis):
     args.mapScale = [args.down_factor, args.down_factor]
@@ -32,7 +31,7 @@ def main(args, vis):
     if not os.path.exists(args.save_path):
         os.makedirs(args.save_path)
 
-    args.dataLen = 15
+    args.dataLen = 435
 
     model = AppearanceModel(args).to(args.device)
     print('Total params: %.2fM' %
@@ -70,24 +69,16 @@ def test(loader, model, args):
         totolFrameNum = totolFrameNum + math.ceil(N/5)
         if hasattr(model.model.model,"reset"):
             model.model.model.reset()
-        if vid_idx >= 10:
-            break
-        # if meta['folder_path'][0] != '/home/andyblocker/DAVIS/JPEGImages/480p/breakdance':
-            # continue
         print('******* Vid %s (%s frames) total frames %s*******' % (vid_idx, N, totolFrameNum))
-        
-        #print the first frame's name
-        # print('first frame name:', meta['folder_path'])
-        
         with torch.no_grad():
             t00 = time.time()
 
             ##################################################################
             # Compute image features (batched for memory efficiency)
             ##################################################################
-            bsize = 4   # minibatch size for computing features
+            bsize = 5   # minibatch size for computing features
             feats = []
-            for b in tqdm(range(0, imgs.shape[1], bsize)):
+            for b in range(0, imgs.shape[1], bsize):
                 feat = model(imgs[:, b:b+bsize].transpose(1, 2).to(args.device))
                 feats.append(feat.cpu())
             feats = torch.cat(feats, dim=2).squeeze(1)
@@ -172,7 +163,7 @@ def test(loader, model, args):
             
             torch.cuda.empty_cache()
             print('******* Vid %s TOOK %s *******' % (vid_idx, time.time() - t_vid))
-            # break
+
 
 
 
@@ -189,14 +180,13 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     with open(args.config) as f:
-        common_args = yaml.load(f,Loader=yaml.FullLoader) 
+        common_args = yaml.load(f) 
     for k, v in common_args['common'].items():
         setattr(args, k, v)
     for k, v in common_args['vos'].items():
         setattr(args, k, v)
 
     args.imgSize = args.cropSize
-    args.exp_name = args.exp_name + f"T={args.time_step}"
     args.save_path = 'results/vos/{}'.format(args.exp_name)
     args.evaltool_root = osp.join(args.davisroot, 'davis2017-evaluation')
 
