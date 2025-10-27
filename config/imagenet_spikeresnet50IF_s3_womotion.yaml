@@ -1,5 +1,5 @@
 common:
-    exp_name: imagenet_spikeimagenet50IF_s3_womotion_T=32
+    exp_name: imagenet_spikeimagenet50IF_s3_womotion
    
     # Model related
     model_type: spikeimagenet50IF
